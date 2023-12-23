@@ -1,0 +1,153 @@
+"use client"
+import React, { useState } from 'react';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+import LayoutAuth from '@/components/LayoutAuth/page';
+import FirebaseConfig from '@/components/FirebaseConfig/FirebaseConfig';
+import { collection, addDoc, doc, deleteDoc, getDocs, where, query } from 'firebase/firestore';
+
+export default function CalendarWithTime() {
+    const [value, onChange] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [showTimeSlots, setShowTimeSlots] = useState(false);
+    const [selectedSlot, setSelectedSlot] = useState(null);
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const [selectedTime, setSelectedTime] = useState(null);
+    const [isSlotBooked, setIsSlotBooked] = useState(false);
+    
+
+    const db = FirebaseConfig().firestore;
+
+    const timeSlots = [
+        '09:00 - 09:30',
+        '09:40 - 10:10',
+        '10:20 - 10:50',
+        '11:00 - 11:30',
+        '11:40 - 12:10',
+        '12:20 - 12:50',
+        '13:00 - 13:30',
+        '13:40 - 14:10',
+        '14:20 - 14:50',
+        '15:00 - 15:30',
+        '15:40 - 16:10',
+        '16:20 - 16:50',
+        '17:00 - 17:30',
+        '17:40 - 18:10',
+        '18:20 - 18:50',
+        '19:00 - 19:30',
+        '19:40 - 20:10',
+        '20:20 - 20:50'
+    ];
+
+    const handleDateChange = date => {
+        setSelectedDate(date);
+        setShowTimeSlots(true); 
+        setSelectedTime(null);
+    };
+
+    const handleTimeSlotClick = (index) => {
+        setSelectedSlot(index);
+        setIsPopupOpen(true);
+        setSelectedTime(timeSlots[index]);
+    };
+
+    const closePopup = () => {
+        setIsPopupOpen(false);
+        setSelectedSlot(null);
+    };
+
+    const booking = async() =>{
+        if(selectedSlot !== null) {
+            const bookingRef = collection(db,'Jadwal');
+            await addDoc(bookingRef, {
+                tanggal: selectedDate,
+                jam: selectedTime,
+                status: 'dibooking',
+            })
+            .then(()=>{
+                console.log('Booking berhasil');
+                closePopup();
+                setIsSlotBooked(true);
+                alert('berhasil')
+            })
+            .catch(error =>{
+                console.log('error', error);
+                alert('error')
+            });
+        }
+
+    }
+
+    const selesai = async () => {
+        if (selectedSlot !== null) {
+            const bookingDocRef = doc(db, 'Jadwal', timeSlots[selectedSlot]); // Mendapatkan referensi dokumen 'Jadwal' berdasarkan selectedSlot
+            await deleteDoc(bookingDocRef)
+            .then(() => {
+                console.log('Booking selesai dan dihapus');
+                closePopup();
+                setIsSlotBooked(false);
+                alert('berhasil')
+            })
+            .catch(error => {
+                alert('error')
+                console.error('Error deleting booking:', error);
+            });
+        }
+    }
+    
+    return (
+        <>
+        <LayoutAuth>
+            <div  className="relative flex items-start">
+               
+                <div className="m-4">
+                    <Calendar
+                        onChange={onChange}
+                        value={value}
+                        onClickDay={handleDateChange}
+                    />
+                </div>
+                <button 
+                className="m-4">
+                    {showTimeSlots && selectedDate && (
+                        timeSlots.map((time, index) => (
+                            <div
+                                key={index}
+                                onClick={() => handleTimeSlotClick(index)}
+                                className="m-2 rounded inline-flex items-center justify-center gap-2 bg-primary py-2 px-4 text-sm font-medium text-white hover:bg-opacity-90 lg:px-6 xl:px-7 w-52" // Menetapkan lebar tetap untuk waktu
+                            >
+                                {time}
+                            </div>
+                        ))
+                    )}
+                    {!selectedDate && (
+                        <div className="text-gray-500">Pilih sebuah tanggal untuk melihat waktu yang tersedia.</div>
+                    )}
+                </button>
+                {selectedSlot !== null && (
+                        <div className="absolute top-0 left-0 h-screen w-screen flex items-center justify-center bg-gray-800 bg-opacity-50">
+                            <div className="bg-white p-4 rounded shadow">
+                                <h2>{selectedTime}</h2>
+                                <button 
+                                onClick={closePopup}>Tutup</button>
+                                <div>
+                                    <button 
+                                    onClick={booking}
+                                    disabled={isSlotBooked}
+                                    className="m-2 rounded inline-flex items-center justify-center gap-2 bg-primary py-2 px-4 text-sm font-medium text-white hover:bg-opacity-90 lg:px-6 xl:px-7 w-52">
+                                        Dibooking
+                                    </button>
+                                    <button 
+                                    onClick={selesai}
+                                    className="m-2 rounded inline-flex items-center justify-center gap-2 bg-primary py-2 px-4 text-sm font-medium text-white hover:bg-opacity-90 lg:px-6 xl:px-7 w-52">
+                                        Selesai
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+            </div>
+        </LayoutAuth>
+        </>
+    );
+}
